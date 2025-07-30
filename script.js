@@ -4,17 +4,17 @@ const audioPlayer = document.getElementById('audio-player');
 const statusDiv = document.getElementById('status');
 const apiKeyInput = document.getElementById('username');
 
-// Load API key from localStorage on page load
+// Load access token from localStorage on page load
 window.addEventListener('DOMContentLoaded', () => {
-    const savedKey = localStorage.getItem('openai_api_key');
-    if (savedKey) {
-        apiKeyInput.value = savedKey;
+    const savedToken = localStorage.getItem('openai_access_token');
+    if (savedToken) {
+        apiKeyInput.value = savedToken;
     }
 });
 
-// Save API key to localStorage when changed
+// Save access token to localStorage when changed
 apiKeyInput.addEventListener('input', () => {
-    localStorage.setItem('openai_api_key', apiKeyInput.value);
+    localStorage.setItem('openai_access_token', apiKeyInput.value);
 });
 const modelSelect = document.getElementById('model-select');
 
@@ -30,7 +30,7 @@ speakBtn.addEventListener('click', async () => {
     progressBar.max = 100;
     progressLabel.textContent = 'Loading: 0%';
     const text = textToSpeak.value.trim();
-    const apiKey = apiKeyInput.value.trim();
+    const accessToken = apiKeyInput.value.trim();
 
     if (text === '') {
         alert('Please enter some text.');
@@ -38,8 +38,8 @@ speakBtn.addEventListener('click', async () => {
     }
 
 
-    if (apiKey === '') {
-        alert('Please enter your OpenAI API Key.');
+    if (accessToken === '') {
+        alert('Please enter your access token.');
         return;
     }
 
@@ -73,7 +73,7 @@ speakBtn.addEventListener('click', async () => {
                 const response = await fetch('https://api.openai.com/v1/audio/speech', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${apiKey}`,
+                    'Authorization': `Bearer ${accessToken}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
