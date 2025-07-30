@@ -47,7 +47,7 @@ speakBtn.addEventListener('click', async () => {
             body: JSON.stringify({
                 model: selectedModel,
                 input: text,
-                voice: 'alloy', // Alloy voice
+                voice: 'onyx', // Onyx voice
                 response_format: 'mp3'
             })
         });
