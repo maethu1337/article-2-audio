@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Article to Audio</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Article to Audio</h1>
+        <p>Paste your article text below and press "Speak" to listen.</p>
+        <textarea id="text-to-speak" rows="10" placeholder="Enter article text here..."></textarea>
+        <div class="controls">
+            <button id="speak-btn">Speak</button>
+            <button id="pause-btn" disabled>Pause</button>
+            <button id="resume-btn" disabled>Resume</button>
+            <button id="stop-btn" disabled>Stop</button>
+        </div>
+        <div id="status" class="status"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
