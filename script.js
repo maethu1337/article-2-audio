@@ -33,7 +33,7 @@ speakBtn.addEventListener('click', async () => {
                 },
                 voice: {
                     languageCode: 'en-US',
-                    name: 'en-US-Studio-M' // A Gemini voice
+                    name: 'en-US-Pegasus-1' // A Pegasus voice
                 },
                 audioConfig: {
                     audioEncoding: 'MP3'
