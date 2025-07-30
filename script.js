@@ -2,7 +2,7 @@ const textToSpeak = document.getElementById('text-to-speak');
 const speakBtn = document.getElementById('speak-btn');
 const audioPlayer = document.getElementById('audio-player');
 const statusDiv = document.getElementById('status');
-const apiKeyInput = document.getElementById('api-key');
+const apiKeyInput = document.getElementById('username');
 
 // Load API key from localStorage on page load
 window.addEventListener('DOMContentLoaded', () => {
