@@ -48,7 +48,7 @@ speakBtn.addEventListener('click', async () => {
 
     try {
         const selectedModel = modelSelect.value;
-        const chunkSize = 512;
+        const chunkSize = 1024;
         const chunks = [];
         let i = 0;
         while (i < text.length) {
