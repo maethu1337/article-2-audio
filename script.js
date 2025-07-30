@@ -13,8 +13,9 @@ speakBtn.addEventListener('click', async () => {
         return;
     }
 
+
     if (apiKey === '') {
-        alert('Please enter your Google Cloud API Key.');
+        alert('Please enter your OpenAI API Key.');
         return;
     }
 
@@ -22,22 +23,17 @@ speakBtn.addEventListener('click', async () => {
     speakBtn.disabled = true;
 
     try {
-        const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
+        const response = await fetch('https://api.openai.com/v1/audio/speech', {
             method: 'POST',
             headers: {
+                'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                input: {
-                    text: text
-                },
-                voice: {
-                    languageCode: 'en-US',
-                    name: 'en-US-Pegasus-1' // A Pegasus voice
-                },
-                audioConfig: {
-                    audioEncoding: 'MP3'
-                }
+                model: 'tts-1-hd', // OpenAI high-definition TTS model
+                input: text,
+                voice: 'alloy', // Alloy voice
+                response_format: 'mp3'
             })
         });
 
@@ -46,11 +42,10 @@ speakBtn.addEventListener('click', async () => {
             throw new Error(`API Error: ${error.error.message}`);
         }
 
-        const data = await response.json();
-        const audioContent = data.audioContent;
-        const audioSrc = `data:audio/mp3;base64,${audioContent}`;
-        
-        audioPlayer.src = audioSrc;
+        // OpenAI returns the audio as a binary mp3 file
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        audioPlayer.src = audioUrl;
         audioPlayer.hidden = false;
         audioPlayer.play();
         statusDiv.textContent = 'Playing audio.';
