@@ -1,20 +1,39 @@
-.progress-container {
-    margin-bottom: 1rem;
+.playback-progress-container {
+    margin: 1rem 0 0 0;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    width: 100%;
+    justify-content: center;
+}
+
+#playback-progress {
+    width: 180px;
+    height: 12px;
+    margin: 0 0.5rem;
+}
+
+#playback-label {
+    font-size: 0.85rem;
+    color: #333;
+    min-width: 80px;
+    text-align: left;
+}
+.progress-inline {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 1rem;
 }
 
 #progress-bar {
-    width: 80%;
-    height: 20px;
-    margin-bottom: 0.5rem;
+    width: 100px;
+    height: 12px;
+    margin: 0 0.5rem;
 }
 
 #progress-label {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: #333;
+    min-width: 60px;
+    text-align: left;
 }
 .model-toggle {
     margin-bottom: 1rem;

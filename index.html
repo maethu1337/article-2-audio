@@ -7,10 +7,6 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-        <div class="progress-container">
-            <progress id="progress-bar" value="0" max="100"></progress>
-            <span id="progress-label">Loading: 0%</span>
-        </div>
     <div class="container">
         <h1>Article to Audio</h1>
         <p>Paste your article text below, enter your API key, and press "Speak" to listen.</p>
@@ -28,8 +24,16 @@
         </div>
         <div class="controls">
             <button id="speak-btn">Speak</button>
+            <span class="progress-inline">
+                <progress id="progress-bar" value="0" max="100"></progress>
+                <span id="progress-label">Loading: 0%</span>
+            </span>
         </div>
         <audio id="audio-player" controls></audio>
+        <div class="playback-progress-container">
+            <progress id="playback-progress" value="0" max="100"></progress>
+            <span id="playback-label">Playback: 0%</span>
+        </div>
         <div id="status" class="status"></div>
     </div>
     <script src="script.js"></script>

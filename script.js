@@ -19,6 +19,11 @@ apiKeyInput.addEventListener('input', () => {
 const modelSelect = document.getElementById('model-select');
 
 speakBtn.addEventListener('click', async () => {
+    const playbackProgress = document.getElementById('playback-progress');
+    const playbackLabel = document.getElementById('playback-label');
+    playbackProgress.value = 0;
+    playbackProgress.max = 100;
+    playbackLabel.textContent = 'Playback: 0%';
     const progressBar = document.getElementById('progress-bar');
     const progressLabel = document.getElementById('progress-label');
     progressBar.value = 0;
@@ -114,19 +119,27 @@ speakBtn.addEventListener('click', async () => {
                 statusDiv.textContent = 'Playing audio...';
                 firstChunkPlayed = true;
 
-                // When first chunk ends, play the rest sequentially
-                let currentIdx = 1;
+                // Custom playback progress
+                let currentIdx = 0;
+                let totalChunks = chunks.length;
+                playbackProgress.value = 0;
+                playbackLabel.textContent = `Playback: 0%`;
+
                 audioPlayer.onended = async function playNextChunk() {
-                    while (!audioBlobs[currentIdx] && currentIdx < chunks.length && !errorOccurred) {
+                    currentIdx++;
+                    playbackProgress.value = Math.round((currentIdx / totalChunks) * 100);
+                    playbackLabel.textContent = `Playback: ${playbackProgress.value}%`;
+                    while (!audioBlobs[currentIdx] && currentIdx < totalChunks && !errorOccurred) {
                         await new Promise(res => setTimeout(res, 100));
                     }
                     if (audioBlobs[currentIdx]) {
                         const nextUrl = URL.createObjectURL(audioBlobs[currentIdx]);
                         audioPlayer.src = nextUrl;
                         audioPlayer.play();
-                        currentIdx++;
-                    } else if (currentIdx >= chunks.length) {
+                    } else if (currentIdx >= totalChunks) {
                         statusDiv.textContent = 'Finished speaking.';
+                        playbackProgress.value = 100;
+                        playbackLabel.textContent = 'Playback: 100%';
                     }
                 };
             }
