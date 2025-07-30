@@ -3,6 +3,19 @@ const speakBtn = document.getElementById('speak-btn');
 const audioPlayer = document.getElementById('audio-player');
 const statusDiv = document.getElementById('status');
 const apiKeyInput = document.getElementById('api-key');
+
+// Load API key from localStorage on page load
+window.addEventListener('DOMContentLoaded', () => {
+    const savedKey = localStorage.getItem('openai_api_key');
+    if (savedKey) {
+        apiKeyInput.value = savedKey;
+    }
+});
+
+// Save API key to localStorage when changed
+apiKeyInput.addEventListener('input', () => {
+    localStorage.setItem('openai_api_key', apiKeyInput.value);
+});
 const modelSelect = document.getElementById('model-select');
 
 speakBtn.addEventListener('click', async () => {
