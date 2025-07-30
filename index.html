@@ -15,6 +15,13 @@
             <input type="text" id="api-key" placeholder="Enter your OpenAI API Key" autocomplete="api-key">
         </div>
         <textarea id="text-to-speak" rows="10" placeholder="Enter article text here..."></textarea>
+        <div class="model-toggle">
+            <label for="model-select">Voice Model:</label>
+            <select id="model-select">
+                <option value="tts-1" selected>Mini (tts-1)</option>
+                <option value="tts-1-hd">HD (tts-1-hd)</option>
+            </select>
+        </div>
         <div class="controls">
             <button id="speak-btn">Speak</button>
         </div>

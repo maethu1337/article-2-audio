@@ -3,6 +3,7 @@ const speakBtn = document.getElementById('speak-btn');
 const audioPlayer = document.getElementById('audio-player');
 const statusDiv = document.getElementById('status');
 const apiKeyInput = document.getElementById('api-key');
+const modelSelect = document.getElementById('model-select');
 
 speakBtn.addEventListener('click', async () => {
     const text = textToSpeak.value.trim();
@@ -23,6 +24,7 @@ speakBtn.addEventListener('click', async () => {
     speakBtn.disabled = true;
 
     try {
+        const selectedModel = modelSelect.value;
         const response = await fetch('https://api.openai.com/v1/audio/speech', {
             method: 'POST',
             headers: {
@@ -30,7 +32,7 @@ speakBtn.addEventListener('click', async () => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'tts-1-hd', // OpenAI high-definition TTS model
+                model: selectedModel,
                 input: text,
                 voice: 'alloy', // Alloy voice
                 response_format: 'mp3'
