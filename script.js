@@ -48,9 +48,19 @@ speakBtn.addEventListener('click', async () => {
 
     try {
         const selectedModel = modelSelect.value;
-        const chunkSize = 1024;
+        const firstChunkSize = 128;
+        const chunkSize = 256;
         const chunks = [];
         let i = 0;
+        // First chunk: smaller for fast playback
+        let end = Math.min(i + firstChunkSize, text.length);
+        if (end < text.length) {
+            let lastPeriod = text.lastIndexOf('.', end);
+            if (lastPeriod > i + 30) end = lastPeriod + 1;
+        }
+        chunks.push(text.slice(i, end));
+        i = end;
+        // Remaining chunks: larger for efficiency
         while (i < text.length) {
             let end = Math.min(i + chunkSize, text.length);
             if (end < text.length) {

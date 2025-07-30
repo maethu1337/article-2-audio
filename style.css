@@ -1,85 +1,55 @@
-.playback-progress-container {
-    margin: 1rem 0 0 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
 
-#playback-progress {
-    width: 180px;
-    height: 12px;
-    margin: 0 0.5rem;
-}
-
-#playback-label {
-    font-size: 0.85rem;
-    color: #333;
-    min-width: 80px;
-    text-align: left;
-}
-.progress-inline {
-    display: inline-flex;
-    align-items: center;
-    margin-left: 1rem;
-}
-
-#progress-bar {
-    width: 100px;
-    height: 12px;
-    margin: 0 0.5rem;
-}
-
-#progress-label {
-    font-size: 0.85rem;
-    color: #333;
-    min-width: 60px;
-    text-align: left;
-}
-.model-toggle {
-    margin-bottom: 1rem;
-    text-align: left;
-}
-
-.model-toggle label {
-    margin-right: 0.5rem;
-}
-
-.model-toggle select {
-    padding: 0.3rem;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-}
 body {
-    font-family: sans-serif;
+    font-family: 'Inter', sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: #f0f0f0;
+    background-color: #121212;
+    color: #e0e0e0;
     margin: 0;
 }
 
 .container {
-    background-color: white;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background-color: #1e1e1e;
+    padding: 2rem 3rem;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
     width: 90%;
     max-width: 600px;
     text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 h1 {
     margin-bottom: 1rem;
+    font-weight: 700;
+    color: #ffffff;
 }
 
-textarea {
+p {
+    color: #a0a0a0;
+    margin-bottom: 2rem;
+}
+
+textarea, .api-key-container input, .model-toggle select {
     width: 100%;
-    padding: 0.5rem;
+    padding: 0.75rem;
     margin-bottom: 1rem;
-    border-radius: 4px;
-    border: 1px solid #ccc;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background-color: #252525;
+    color: #e0e0e0;
     resize: vertical;
+    font-family: 'Inter', sans-serif;
+    box-sizing: border-box;
+}
+
+textarea:focus, .api-key-container input:focus, .model-toggle select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
 }
 
 .api-key-container {
@@ -90,37 +60,124 @@ textarea {
 .api-key-container label {
     display: block;
     margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #c0c0c0;
 }
 
-.api-key-container input {
-    width: 100%;
-    padding: 0.5rem;
-    border-radius: 4px;
-    border: 1px solid #ccc;
+.controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
 }
 
 .controls button {
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1.5rem;
     border: none;
-    border-radius: 4px;
-    margin: 0.25rem;
+    border-radius: 8px;
     cursor: pointer;
-    background-color: #007bff;
+    background: linear-gradient(45deg, #007bff, #0056b3);
     color: white;
+    font-weight: 500;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+}
+
+.controls button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3);
 }
 
 .controls button:disabled {
-    background-color: #ccc;
+    background: #333;
+    color: #666;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
-audio {
+.status {
+    margin-top: 1.5rem;
+    font-style: italic;
+    color: #888;
+}
+
+.progress-inline, .playback-progress-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 100%;
     margin-top: 1rem;
 }
 
-.status {
-    margin-top: 1rem;
-    font-style: italic;
-    color: #666;
+#progress-bar, #playback-progress {
+    width: 100%;
+    height: 8px;
+    -webkit-appearance: none;
+    appearance: none;
+    border: none;
+    border-radius: 8px;
+    background: #333;
+    overflow: hidden;
+}
+
+#progress-bar::-webkit-progress-bar, #playback-progress::-webkit-progress-bar {
+    background-color: #333;
+}
+
+#progress-bar::-webkit-progress-value, #playback-progress::-webkit-progress-value {
+    background-color: #007bff;
+    border-radius: 8px;
+    transition: width 0.3s ease;
+}
+
+#progress-bar::-moz-progress-bar, #playback-progress::-moz-progress-bar {
+    background-color: #007bff;
+    border-radius: 8px;
+}
+
+#progress-label, #playback-label {
+    font-size: 0.85rem;
+    color: #a0a0a0;
+    min-width: 80px;
+    text-align: left;
+    margin-left: 1rem;
+}
+
+.model-toggle {
+    margin-bottom: 1rem;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.model-toggle label {
+    margin-right: 0.5rem;
+    font-weight: 500;
+    color: #c0c0c0;
+}
+
+audio {
+    display: block;
+    margin: 1.5rem auto 0 auto;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 8px;
+    background: #252525;
+    border: 1px solid #333;
+}
+
+audio::-webkit-media-controls-panel {
+    background-color: #252525;
+}
+
+audio::-webkit-media-controls-play-button,
+audio::-webkit-media-controls-volume-slider {
+    filter: invert(1);
+}
+
+.playback-progress-container {
+    margin-bottom: 1rem;
 }
