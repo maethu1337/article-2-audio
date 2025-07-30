@@ -1,64 +1,64 @@
 const textToSpeak = document.getElementById('text-to-speak');
 const speakBtn = document.getElementById('speak-btn');
-const pauseBtn = document.getElementById('pause-btn');
-const resumeBtn = document.getElementById('resume-btn');
-const stopBtn = document.getElementById('stop-btn');
+const audioPlayer = document.getElementById('audio-player');
 const statusDiv = document.getElementById('status');
+const apiKeyInput = document.getElementById('api-key');
 
-let utterance;
+speakBtn.addEventListener('click', async () => {
+    const text = textToSpeak.value.trim();
+    const apiKey = apiKeyInput.value.trim();
 
-speakBtn.addEventListener('click', () => {
-    const text = textToSpeak.value;
-    if (text.trim() === '') {
+    if (text === '') {
         alert('Please enter some text.');
         return;
     }
 
-    if (speechSynthesis.speaking) {
-        speechSynthesis.cancel();
+    if (apiKey === '') {
+        alert('Please enter your Google Cloud API Key.');
+        return;
     }
 
-    utterance = new SpeechSynthesisUtterance(text);
-    
-    utterance.onstart = () => {
-        statusDiv.textContent = 'Speaking...';
-        speakBtn.disabled = true;
-        pauseBtn.disabled = false;
-        resumeBtn.disabled = true;
-        stopBtn.disabled = false;
-    };
+    statusDiv.textContent = 'Synthesizing audio...';
+    speakBtn.disabled = true;
 
-    utterance.onpause = () => {
-        statusDiv.textContent = 'Paused.';
-        pauseBtn.disabled = true;
-        resumeBtn.disabled = false;
-    };
+    try {
+        const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                input: {
+                    text: text
+                },
+                voice: {
+                    languageCode: 'en-US',
+                    name: 'en-US-Studio-M' // A Gemini voice
+                },
+                audioConfig: {
+                    audioEncoding: 'MP3'
+                }
+            })
+        });
 
-    utterance.onresume = () => {
-        statusDiv.textContent = 'Speaking...';
-        pauseBtn.disabled = false;
-        resumeBtn.disabled = true;
-    };
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(`API Error: ${error.error.message}`);
+        }
 
-    utterance.onend = () => {
-        statusDiv.textContent = 'Finished speaking.';
+        const data = await response.json();
+        const audioContent = data.audioContent;
+        const audioSrc = `data:audio/mp3;base64,${audioContent}`;
+        
+        audioPlayer.src = audioSrc;
+        audioPlayer.hidden = false;
+        audioPlayer.play();
+        statusDiv.textContent = 'Playing audio.';
+
+    } catch (error) {
+        statusDiv.textContent = `Error: ${error.message}`;
+        alert(`An error occurred: ${error.message}`);
+    } finally {
         speakBtn.disabled = false;
-        pauseBtn.disabled = true;
-        resumeBtn.disabled = true;
-        stopBtn.disabled = true;
-    };
-
-    speechSynthesis.speak(utterance);
-});
-
-pauseBtn.addEventListener('click', () => {
-    speechSynthesis.pause();
-});
-
-resumeBtn.addEventListener('click', () => {
-    speechSynthesis.resume();
-});
-
-stopBtn.addEventListener('click', () => {
-    speechSynthesis.cancel();
+    }
 });
