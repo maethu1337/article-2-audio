@@ -20,8 +20,10 @@ const modelSelect = document.getElementById('model-select');
 
 speakBtn.addEventListener('click', async () => {
     const progressBar = document.getElementById('progress-bar');
+    const progressLabel = document.getElementById('progress-label');
     progressBar.value = 0;
     progressBar.max = 100;
+    progressLabel.textContent = 'Loading: 0%';
     const text = textToSpeak.value.trim();
     const apiKey = apiKeyInput.value.trim();
 
@@ -54,38 +56,58 @@ speakBtn.addEventListener('click', async () => {
             i = end;
         }
 
-        let audioBlobs = [];
-        let firstChunkPlayed = false;
+        // Fetch all chunks in parallel
+        let audioBlobs = new Array(chunks.length);
+        let loadedCount = 0;
+        let errorOccurred = false;
 
-        for (let idx = 0; idx < chunks.length; idx++) {
+        // Helper to fetch a chunk and update progress
+        async function fetchChunk(idx) {
             const chunk = chunks[idx];
-            const response = await fetch('https://api.openai.com/v1/audio/speech', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: selectedModel,
-                    input: chunk,
-                    voice: 'onyx', // Onyx voice
-                    response_format: 'mp3'
-                })
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(`API Error: ${error.error.message}`);
+            try {
+                const response = await fetch('https://api.openai.com/v1/audio/speech', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        input: chunk,
+                        voice: 'onyx', // Onyx voice
+                        response_format: 'mp3'
+                    })
+                });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(`API Error: ${error.error.message}`);
+                }
+                const audioBlob = await response.blob();
+                audioBlobs[idx] = audioBlob;
+                loadedCount++;
+                progressBar.value = Math.round((loadedCount / chunks.length) * 100);
+                progressLabel.textContent = `Loading: ${progressBar.value}%`;
+            } catch (error) {
+                errorOccurred = true;
+                statusDiv.textContent = `Error: ${error.message}`;
+                alert(`An error occurred: ${error.message}`);
             }
+        }
 
-            const audioBlob = await response.blob();
-            audioBlobs.push(audioBlob);
-            // Update progress bar
-            progressBar.value = Math.round(((idx + 1) / chunks.length) * 100);
+        // Start fetching all chunks
+        let fetchPromises = [];
+        for (let idx = 0; idx < chunks.length; idx++) {
+            fetchPromises.push(fetchChunk(idx));
+        }
 
-            // Play first chunk as soon as it's ready
-            if (!firstChunkPlayed) {
-                const audioUrl = URL.createObjectURL(audioBlob);
+        // Play first chunk as soon as it's ready
+        let firstChunkPlayed = false;
+        (async function waitAndPlay() {
+            while (!audioBlobs[0] && !errorOccurred) {
+                await new Promise(res => setTimeout(res, 100));
+            }
+            if (audioBlobs[0]) {
+                const audioUrl = URL.createObjectURL(audioBlobs[0]);
                 audioPlayer.src = audioUrl;
                 audioPlayer.hidden = false;
                 audioPlayer.play();
@@ -95,37 +117,20 @@ speakBtn.addEventListener('click', async () => {
                 // When first chunk ends, play the rest sequentially
                 let currentIdx = 1;
                 audioPlayer.onended = async function playNextChunk() {
-                    if (currentIdx < audioBlobs.length) {
+                    while (!audioBlobs[currentIdx] && currentIdx < chunks.length && !errorOccurred) {
+                        await new Promise(res => setTimeout(res, 100));
+                    }
+                    if (audioBlobs[currentIdx]) {
                         const nextUrl = URL.createObjectURL(audioBlobs[currentIdx]);
                         audioPlayer.src = nextUrl;
                         audioPlayer.play();
                         currentIdx++;
-                    } else if (currentIdx < chunks.length) {
-                        // Wait for next chunk to arrive
-                        const checkNext = () => {
-                            if (audioBlobs.length > currentIdx) {
-                                const nextUrl = URL.createObjectURL(audioBlobs[currentIdx]);
-                                audioPlayer.src = nextUrl;
-                                audioPlayer.play();
-                                currentIdx++;
-                            } else {
-                                setTimeout(checkNext, 500);
-                            }
-                        };
-                        checkNext();
-                    } else {
+                    } else if (currentIdx >= chunks.length) {
                         statusDiv.textContent = 'Finished speaking.';
                     }
                 };
             }
-        }
-
-        // If only one chunk, set finished status when done
-        if (chunks.length === 1) {
-            audioPlayer.onended = () => {
-                statusDiv.textContent = 'Finished speaking.';
-            };
-        }
+        })();
 
     } catch (error) {
         statusDiv.textContent = `Error: ${error.message}`;
