@@ -19,6 +19,9 @@ apiKeyInput.addEventListener('input', () => {
 const modelSelect = document.getElementById('model-select');
 
 speakBtn.addEventListener('click', async () => {
+    const progressBar = document.getElementById('progress-bar');
+    progressBar.value = 0;
+    progressBar.max = 100;
     const text = textToSpeak.value.trim();
     const apiKey = apiKeyInput.value.trim();
 
@@ -38,24 +41,14 @@ speakBtn.addEventListener('click', async () => {
 
     try {
         const selectedModel = modelSelect.value;
-        const firstChunkSize = 512;
-        const maxChunkSize = 4096;
+        const chunkSize = 512;
         const chunks = [];
         let i = 0;
-        // First chunk: smaller for fast playback
-        let end = Math.min(i + firstChunkSize, text.length);
-        if (end < text.length) {
-            let lastPeriod = text.lastIndexOf('.', end);
-            if (lastPeriod > i + 50) end = lastPeriod + 1;
-        }
-        chunks.push(text.slice(i, end));
-        i = end;
-        // Remaining chunks: larger for efficiency
         while (i < text.length) {
-            let end = Math.min(i + maxChunkSize, text.length);
+            let end = Math.min(i + chunkSize, text.length);
             if (end < text.length) {
                 let lastPeriod = text.lastIndexOf('.', end);
-                if (lastPeriod > i + 100) end = lastPeriod + 1;
+                if (lastPeriod > i + 50) end = lastPeriod + 1;
             }
             chunks.push(text.slice(i, end));
             i = end;
@@ -87,6 +80,8 @@ speakBtn.addEventListener('click', async () => {
 
             const audioBlob = await response.blob();
             audioBlobs.push(audioBlob);
+            // Update progress bar
+            progressBar.value = Math.round(((idx + 1) / chunks.length) * 100);
 
             // Play first chunk as soon as it's ready
             if (!firstChunkPlayed) {

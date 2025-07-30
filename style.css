@@ -1,3 +1,11 @@
+.progress-container {
+    margin-bottom: 1rem;
+    text-align: left;
+}
+
+#progress-bar {
+    height: 20px;
+}
 .model-toggle {
     margin-bottom: 1rem;
     text-align: left;
