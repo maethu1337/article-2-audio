@@ -1,5 +1,6 @@
 const textToSpeak = document.getElementById('text-to-speak');
 const speakBtn = document.getElementById('speak-btn');
+const downloadBtn = document.getElementById('download-btn');
 const audioPlayer = document.getElementById('audio-player');
 const statusDiv = document.getElementById('status');
 const apiKeyInput = document.getElementById('username');
@@ -19,6 +20,12 @@ apiKeyInput.addEventListener('input', () => {
 const modelSelect = document.getElementById('model-select');
 
 speakBtn.addEventListener('click', async () => {
+    // Reset download button
+    downloadBtn.classList.remove('btn-blue');
+    downloadBtn.classList.add('btn-gray');
+    downloadBtn.removeAttribute('href');
+    downloadBtn.removeAttribute('download');
+    downloadBtn.style.pointerEvents = 'none';
     const playbackProgress = document.getElementById('playback-progress');
     const playbackLabel = document.getElementById('playback-label');
     playbackProgress.value = 0;
@@ -73,6 +80,7 @@ speakBtn.addEventListener('click', async () => {
 
         // Fetch all chunks in parallel
         let audioBlobs = new Array(chunks.length);
+        let allChunksLoaded = false;
         let loadedCount = 0;
         let errorOccurred = false;
 
@@ -114,6 +122,22 @@ speakBtn.addEventListener('click', async () => {
         for (let idx = 0; idx < chunks.length; idx++) {
             fetchPromises.push(fetchChunk(idx));
         }
+
+        // When all chunks are loaded, stitch and enable download
+        Promise.all(fetchPromises).then(() => {
+            if (!errorOccurred) {
+                // Stitch all blobs together
+                const stitchedBlob = new Blob(audioBlobs, { type: 'audio/mpeg' });
+                const stitchedUrl = URL.createObjectURL(stitchedBlob);
+                downloadBtn.classList.remove('btn-gray');
+                downloadBtn.classList.add('btn-blue');
+                downloadBtn.setAttribute('href', stitchedUrl);
+                downloadBtn.setAttribute('download', 'article-audio.mp3');
+                downloadBtn.style.pointerEvents = 'auto';
+                allChunksLoaded = true;
+                statusDiv.textContent = 'Audio ready for download.';
+            }
+        });
 
         // Play first chunk as soon as it's ready
         let firstChunkPlayed = false;
@@ -160,5 +184,13 @@ speakBtn.addEventListener('click', async () => {
         alert(`An error occurred: ${error.message}`);
     } finally {
         speakBtn.disabled = false;
+    }
+});
+
+// Download button click (optional: fallback for browsers not supporting anchor download)
+// No click handler needed for anchor download, but prevent action if not ready
+downloadBtn.addEventListener('click', function(e) {
+    if (!downloadBtn.hasAttribute('href')) {
+        e.preventDefault();
     }
 });

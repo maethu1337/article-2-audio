@@ -23,10 +23,11 @@
             </select>
         </div>
         <div class="controls">
-            <button id="speak-btn">Generate Audio</button>
+            <button id="speak-btn" class="btn-blue">Generate Audio</button>
             <span class="progress-inline">
                 <progress id="progress-bar" value="0" max="100"></progress>
                 <span id="progress-label">Loading: 0%</span>
+                <a id="download-btn" class="btn-gray" style="margin-left: 16px; pointer-events: none;">Download Audio</a>
             </span>
         </div>
         <audio id="audio-player" controls></audio>
