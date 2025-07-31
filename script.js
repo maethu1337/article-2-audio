@@ -19,6 +19,23 @@ apiKeyInput.addEventListener('input', () => {
 });
 const modelSelect = document.getElementById('model-select');
 
+// Helper to determine chunk end at sentence boundary
+function getChunkEnd(text, start, maxSize, minSize) {
+  const textLength = text.length;
+  let end = Math.min(start + maxSize, textLength);
+  if (end < textLength) {
+    const slice = text.slice(start + minSize, end);
+    const lastDot = slice.lastIndexOf('.');
+    const lastQ = slice.lastIndexOf('?');
+    const lastE = slice.lastIndexOf('!');
+    const lastPunc = Math.max(lastDot, lastQ, lastE);
+    if (lastPunc > -1) {
+      return start + minSize + lastPunc + 1;
+    }
+  }
+  return end;
+}
+
 speakBtn.addEventListener('click', async () => {
     // Reset download button
     downloadBtn.classList.remove('btn-blue');
@@ -52,27 +69,19 @@ speakBtn.addEventListener('click', async () => {
         if (modelSelect && modelSelect.value) {
             selectedModel = modelSelect.value;
         }
-        const firstChunkSize = 128;
-        const chunkSize = 256;
+        const firstChunkSize = 256;
+        const chunkSize = 368;
         const chunks = [];
         let i = 0;
         // First chunk: smaller for fast playback
-        let end = Math.min(i + firstChunkSize, text.length);
-        if (end < text.length) {
-            let lastPeriod = text.lastIndexOf('.', end);
-            if (lastPeriod > i + 30) end = lastPeriod + 1;
-        }
+        let end = getChunkEnd(text, i, firstChunkSize, 30);
         chunks.push(text.slice(i, end));
         i = end;
         // Remaining chunks: larger for efficiency
         while (i < text.length) {
-            let end = Math.min(i + chunkSize, text.length);
-            if (end < text.length) {
-                let lastPeriod = text.lastIndexOf('.', end);
-                if (lastPeriod > i + 50) end = lastPeriod + 1;
-            }
+           let end = getChunkEnd(text, i, chunkSize, 50);
             chunks.push(text.slice(i, end));
-            i = end;
+             i = end;
         }
 
         // Fetch all chunks in parallel
