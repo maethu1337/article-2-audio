@@ -23,9 +23,7 @@ speakBtn.addEventListener('click', async () => {
     // Reset download button
     downloadBtn.classList.remove('btn-blue');
     downloadBtn.classList.add('btn-gray');
-    downloadBtn.removeAttribute('href');
-    downloadBtn.removeAttribute('download');
-    downloadBtn.style.pointerEvents = 'none';
+    downloadBtn.disabled = true;
     const playbackProgress = document.getElementById('playback-progress');
     const playbackLabel = document.getElementById('playback-label');
     playbackProgress.value = 0;
@@ -129,11 +127,19 @@ speakBtn.addEventListener('click', async () => {
                 // Stitch all blobs together
                 const stitchedBlob = new Blob(audioBlobs, { type: 'audio/mpeg' });
                 const stitchedUrl = URL.createObjectURL(stitchedBlob);
+                
+                downloadBtn.onclick = () => {
+                    const a = document.createElement('a');
+                    a.href = stitchedUrl;
+                    a.download = 'article-audio.mp3';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                };
+
                 downloadBtn.classList.remove('btn-gray');
                 downloadBtn.classList.add('btn-blue');
-                downloadBtn.setAttribute('href', stitchedUrl);
-                downloadBtn.setAttribute('download', 'article-audio.mp3');
-                downloadBtn.style.pointerEvents = 'auto';
+                downloadBtn.disabled = false;
                 allChunksLoaded = true;
                 statusDiv.textContent = 'Audio ready for download.';
             }
@@ -190,7 +196,7 @@ speakBtn.addEventListener('click', async () => {
 // Download button click (optional: fallback for browsers not supporting anchor download)
 // No click handler needed for anchor download, but prevent action if not ready
 downloadBtn.addEventListener('click', function(e) {
-    if (!downloadBtn.hasAttribute('href')) {
+    if (downloadBtn.disabled) {
         e.preventDefault();
     }
 });
