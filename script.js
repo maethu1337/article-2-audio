@@ -127,10 +127,14 @@ speakBtn.addEventListener('click', async () => {
                 const stitchedBlob = new Blob(audioBlobs, { type: 'audio/mpeg' });
                 const stitchedUrl = URL.createObjectURL(stitchedBlob);
                 
-                downloadBtn.onclick = () => {
+                downloadBtn.onclick = async () => {
+                    // Generate a descriptive title and show it
+                    const title = await generateTitle(text, accessToken);
+                    const titleDiv = document.getElementById('generated-title');
+                    if (titleDiv) titleDiv.textContent = `Generated Title: ${title}`;
                     const a = document.createElement('a');
                     a.href = stitchedUrl;
-                    a.download = 'article-audio.mp3';
+                    a.download = `${title}.mp3`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
