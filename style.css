@@ -107,7 +107,7 @@ textarea:focus, .api-key-container input:focus, .model-toggle select:focus {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
+    width: 30%;
     margin-top: 0rem;
 }
 
@@ -162,7 +162,7 @@ textarea:focus, .api-key-container input:focus, .model-toggle select:focus {
 audio {
     display: block;
     margin: 1.5rem auto 0 auto;
-    width: 100%;
+    width: 30%;
     max-width: 100%;
     border-radius: 8px;
     background: #252525;
@@ -178,6 +178,17 @@ audio::-webkit-media-controls-volume-slider {
     filter: invert(1);
 }
 
+audio::-webkit-media-controls-timeline,
+audio::-webkit-media-controls-current-time-display,
+audio::-webkit-media-controls-time-remaining-display {
+    display: none !important;
+}
+
 .playback-progress-container {
     margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+    width: 30%;
+    margin-left: auto;
+    margin-right: auto;
 }

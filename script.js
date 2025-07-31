@@ -25,15 +25,11 @@ speakBtn.addEventListener('click', async () => {
     downloadBtn.classList.add('btn-gray');
     downloadBtn.disabled = true;
     const playbackProgress = document.getElementById('playback-progress');
-    const playbackLabel = document.getElementById('playback-label');
     playbackProgress.value = 0;
     playbackProgress.max = 100;
-    playbackLabel.textContent = 'Playback: 0%';
     const progressBar = document.getElementById('progress-bar');
-    const progressLabel = document.getElementById('progress-label');
     progressBar.value = 0;
     progressBar.max = 100;
-    progressLabel.textContent = 'Loading: 0%';
     const text = textToSpeak.value.trim();
     const accessToken = apiKeyInput.value.trim();
 
@@ -52,7 +48,10 @@ speakBtn.addEventListener('click', async () => {
     speakBtn.disabled = true;
 
     try {
-        const selectedModel = modelSelect.value;
+        let selectedModel = 'tts-1';
+        if (modelSelect && modelSelect.value) {
+            selectedModel = modelSelect.value;
+        }
         const firstChunkSize = 128;
         const chunkSize = 256;
         const chunks = [];
@@ -107,7 +106,7 @@ speakBtn.addEventListener('click', async () => {
                 audioBlobs[idx] = audioBlob;
                 loadedCount++;
                 progressBar.value = Math.round((loadedCount / chunks.length) * 100);
-                progressLabel.textContent = `Loading: ${progressBar.value}%`;
+                // Visual loading bar updates only
             } catch (error) {
                 errorOccurred = true;
                 statusDiv.textContent = `Error: ${error.message}`;
@@ -163,12 +162,10 @@ speakBtn.addEventListener('click', async () => {
                 let currentIdx = 0;
                 let totalChunks = chunks.length;
                 playbackProgress.value = 0;
-                playbackLabel.textContent = `Playback: 0%`;
 
                 audioPlayer.onended = async function playNextChunk() {
                     currentIdx++;
                     playbackProgress.value = Math.round((currentIdx / totalChunks) * 100);
-                    playbackLabel.textContent = `Playback: ${playbackProgress.value}%`;
                     while (!audioBlobs[currentIdx] && currentIdx < totalChunks && !errorOccurred) {
                         await new Promise(res => setTimeout(res, 100));
                     }
@@ -179,7 +176,6 @@ speakBtn.addEventListener('click', async () => {
                     } else if (currentIdx >= totalChunks) {
                         statusDiv.textContent = 'Finished speaking.';
                         playbackProgress.value = 100;
-                        playbackLabel.textContent = 'Playback: 100%';
                     }
                 };
             }
