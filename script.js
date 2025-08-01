@@ -65,7 +65,7 @@ speakBtn.addEventListener('click', async () => {
     speakBtn.disabled = true;
 
     try {
-        let selectedModel = 'tts-1';
+        let selectedModel = 'gpt-4o-mini-tts';
         if (modelSelect && modelSelect.value) {
             selectedModel = modelSelect.value;
         }
