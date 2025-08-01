@@ -69,8 +69,8 @@ speakBtn.addEventListener('click', async () => {
         if (modelSelect && modelSelect.value) {
             selectedModel = modelSelect.value;
         }
-        const firstChunkSize = 256;
-        const chunkSize = 368;
+        const firstChunkSize = 512;
+        const chunkSize = 2048;
         const chunks = [];
         let i = 0;
         // First chunk: smaller for fast playback
