@@ -93,7 +93,7 @@ speakBtn.addEventListener('click', async () => {
                     messages: [
                         {
                             role: 'system',
-                            content: 'Extract only the article body text from the following raw page content. Return the article text exactly as written — do not summarize, rephrase, or alter the wording. Remove all navigation, headers, footers, ads, cookie notices, and other non-article content.'
+                            content: 'Extract only the article body text from the following raw page content. Return the article text exactly as written — do not summarize, rephrase, or alter the wording. Remove all of the following: navigation menus, page headers/footers, ads, cookie notices, sidebar content, related article links, subscription prompts, image captions, illustration credits, chart/graph labels and data points, diagram descriptions, source attributions for charts, "This article appeared in..." notes, and any other non-prose content. Keep only the flowing article paragraphs and their subheadings.'
                         },
                         { role: 'user', content: text }
                     ]
