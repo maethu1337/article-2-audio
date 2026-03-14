@@ -18,6 +18,22 @@ apiKeyInput.addEventListener('input', () => {
     localStorage.setItem('openai_access_token', apiKeyInput.value);
 });
 const modelSelect = document.getElementById('model-select');
+const rawArticleToggle = document.getElementById('raw-article-toggle');
+const labelClean = document.getElementById('label-clean');
+const labelRaw = document.getElementById('label-raw');
+
+// Toggle label highlighting
+function updateToggleLabels() {
+    if (rawArticleToggle.checked) {
+        labelClean.classList.remove('active');
+        labelRaw.classList.add('active');
+    } else {
+        labelClean.classList.add('active');
+        labelRaw.classList.remove('active');
+    }
+}
+rawArticleToggle.addEventListener('change', updateToggleLabels);
+updateToggleLabels();
 
 // Helper to determine chunk end at sentence boundary
 function getChunkEnd(text, start, maxSize, minSize) {
@@ -47,7 +63,7 @@ speakBtn.addEventListener('click', async () => {
     const progressBar = document.getElementById('progress-bar');
     progressBar.value = 0;
     progressBar.max = 100;
-    const text = textToSpeak.value.trim();
+    let text = textToSpeak.value.trim();
     const accessToken = apiKeyInput.value.trim();
 
     if (text === '') {
@@ -59,6 +75,45 @@ speakBtn.addEventListener('click', async () => {
     if (accessToken === '') {
         alert('Please enter your access token.');
         return;
+    }
+
+    // Raw Article mode: clean text via LLM first
+    if (rawArticleToggle.checked) {
+        statusDiv.textContent = 'Cleaning article text...';
+        speakBtn.disabled = true;
+        try {
+            const cleanupResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'gpt-5-mini',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'Extract only the article body text from the following raw page content. Return the article text exactly as written — do not summarize, rephrase, or alter the wording. Remove all navigation, headers, footers, ads, cookie notices, and other non-article content.'
+                        },
+                        { role: 'user', content: text }
+                    ]
+                })
+            });
+            if (!cleanupResponse.ok) {
+                const error = await cleanupResponse.json();
+                throw new Error(`Cleanup API Error: ${error.error.message}`);
+            }
+            const cleanupData = await cleanupResponse.json();
+            const cleanedText = cleanupData.choices[0].message.content.trim();
+            textToSpeak.value = cleanedText;
+            // Update text variable for TTS
+            text = cleanedText;
+        } catch (error) {
+            statusDiv.textContent = `Error: ${error.message}`;
+            alert(`An error occurred during text cleanup: ${error.message}`);
+            speakBtn.disabled = false;
+            return;
+        }
     }
 
     statusDiv.textContent = 'Synthesizing audio...';

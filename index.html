@@ -16,11 +16,19 @@
             <input type="text" id="username" name="username" placeholder="Enter your access token" autocomplete="username">
         </div>
         <textarea id="text-to-speak" rows="10" placeholder="Enter article text here..."></textarea>
+        <div class="text-mode-toggle">
+            <span class="toggle-label" id="label-clean">Clean Text</span>
+            <label class="switch">
+                <input type="checkbox" id="raw-article-toggle">
+                <span class="slider"></span>
+            </label>
+            <span class="toggle-label" id="label-raw">Raw Article</span>
+        </div>
         <div class="model-toggle">
             <label for="model-select">Voice Model:</label>
             <select id="model-select">
-                <option value="gpt-4o-mini-tts" selected>cheap</option>
-                <option value="tts-1">not cheap</option>
+                <option value="gpt-4o-mini-tts" selected>gpt-4o-mini-tts</option>
+                <option value="tts-1">tts-1</option>
             </select>
         </div>
         <div class="controls">
