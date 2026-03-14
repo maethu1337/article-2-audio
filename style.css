@@ -33,7 +33,7 @@ p {
     margin-bottom: 2rem;
 }
 
-textarea, .api-key-container input, .model-toggle select {
+textarea, .api-key-container input {
     width: 100%;
     padding: 0.75rem;
     margin-bottom: 1rem;
@@ -46,7 +46,23 @@ textarea, .api-key-container input, .model-toggle select {
     box-sizing: border-box;
 }
 
-textarea:focus, .api-key-container input:focus, .model-toggle select:focus {
+.model-toggle select {
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background-color: #252525;
+    color: #e0e0e0;
+    font-family: 'Inter', sans-serif;
+    box-sizing: border-box;
+}
+
+textarea:focus, .api-key-container input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+.model-toggle select:focus {
     outline: none;
     border-color: #007bff;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);

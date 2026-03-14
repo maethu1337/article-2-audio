@@ -18,6 +18,21 @@ apiKeyInput.addEventListener('input', () => {
     localStorage.setItem('openai_access_token', apiKeyInput.value);
 });
 const modelSelect = document.getElementById('model-select');
+const voiceSelect = document.getElementById('voice-select');
+
+// Default voices per model
+const defaultVoices = {
+    'gpt-4o-mini-tts': 'onyx',
+    'tts-1': 'onyx'
+};
+
+// Switch default voice when model changes
+modelSelect.addEventListener('change', () => {
+    const model = modelSelect.value;
+    if (defaultVoices[model]) {
+        voiceSelect.value = defaultVoices[model];
+    }
+});
 const rawArticleToggle = document.getElementById('raw-article-toggle');
 const labelClean = document.getElementById('label-clean');
 const labelRaw = document.getElementById('label-raw');
@@ -54,8 +69,6 @@ function getChunkEnd(text, start, maxSize, minSize) {
 
 speakBtn.addEventListener('click', async () => {
     // Reset download button
-    downloadBtn.classList.remove('btn-blue');
-    downloadBtn.classList.add('btn-gray');
     downloadBtn.disabled = true;
     const playbackProgress = document.getElementById('playback-progress');
     playbackProgress.value = 0;
@@ -124,6 +137,10 @@ speakBtn.addEventListener('click', async () => {
         if (modelSelect && modelSelect.value) {
             selectedModel = modelSelect.value;
         }
+        let selectedVoice = 'onyx';
+        if (voiceSelect && voiceSelect.value) {
+            selectedVoice = voiceSelect.value;
+        }
         const firstChunkSize = 512;
         const chunkSize = 2048;
         const chunks = [];
@@ -158,7 +175,7 @@ speakBtn.addEventListener('click', async () => {
                     body: JSON.stringify({
                         model: selectedModel,
                         input: chunk,
-                        voice: 'onyx', // Onyx voice
+                        voice: selectedVoice,
                         response_format: 'mp3'
                     })
                 });
@@ -190,7 +207,7 @@ speakBtn.addEventListener('click', async () => {
                 // Stitch all blobs together
                 const stitchedBlob = new Blob(audioBlobs, { type: 'audio/mpeg' });
                 const stitchedUrl = URL.createObjectURL(stitchedBlob);
-                
+
                 downloadBtn.onclick = async () => {
                     // Generate a descriptive title and show it
                     const title = await generateTitle(text, accessToken);
@@ -204,12 +221,13 @@ speakBtn.addEventListener('click', async () => {
                     document.body.removeChild(a);
                 };
 
-                downloadBtn.classList.remove('btn-gray');
-                downloadBtn.classList.add('btn-blue');
                 downloadBtn.disabled = false;
                 allChunksLoaded = true;
                 statusDiv.textContent = 'Audio ready for download.';
             }
+        }).catch((err) => {
+            statusDiv.textContent = `Error: ${err.message}`;
+            speakBtn.disabled = false;
         });
 
         // Play first chunk as soon as it's ready
@@ -219,8 +237,8 @@ speakBtn.addEventListener('click', async () => {
                 await new Promise(res => setTimeout(res, 100));
             }
             if (audioBlobs[0]) {
-                const audioUrl = URL.createObjectURL(audioBlobs[0]);
-                audioPlayer.src = audioUrl;
+                let currentObjUrl = URL.createObjectURL(audioBlobs[0]);
+                audioPlayer.src = currentObjUrl;
                 audioPlayer.hidden = false;
                 audioPlayer.play();
                 statusDiv.textContent = 'Playing audio...';
@@ -232,14 +250,15 @@ speakBtn.addEventListener('click', async () => {
                 playbackProgress.value = 0;
 
                 audioPlayer.onended = async function playNextChunk() {
+                    URL.revokeObjectURL(currentObjUrl);
                     currentIdx++;
                     playbackProgress.value = Math.round((currentIdx / totalChunks) * 100);
                     while (!audioBlobs[currentIdx] && currentIdx < totalChunks && !errorOccurred) {
                         await new Promise(res => setTimeout(res, 100));
                     }
                     if (audioBlobs[currentIdx]) {
-                        const nextUrl = URL.createObjectURL(audioBlobs[currentIdx]);
-                        audioPlayer.src = nextUrl;
+                        currentObjUrl = URL.createObjectURL(audioBlobs[currentIdx]);
+                        audioPlayer.src = currentObjUrl;
                         audioPlayer.play();
                     } else if (currentIdx >= totalChunks) {
                         statusDiv.textContent = 'Finished speaking.';
