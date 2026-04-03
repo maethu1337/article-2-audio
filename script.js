@@ -3,19 +3,18 @@ const speakBtn = document.getElementById('speak-btn');
 const downloadBtn = document.getElementById('download-btn');
 const audioPlayer = document.getElementById('audio-player');
 const statusDiv = document.getElementById('status');
-const apiKeyInput = document.getElementById('username');
 
-// Load access token from localStorage on page load
-window.addEventListener('DOMContentLoaded', () => {
-    const savedToken = localStorage.getItem('openai_access_token');
-    if (savedToken) {
-        apiKeyInput.value = savedToken;
+// Load user info from server
+window.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const resp = await fetch('/api/me');
+        if (resp.ok) {
+            const user = await resp.json();
+            document.getElementById('user-greeting').textContent = `Welcome, ${user.display_name}`;
+        }
+    } catch (e) {
+        console.error('Failed to load user info', e);
     }
-});
-
-// Save access token to localStorage when changed
-apiKeyInput.addEventListener('input', () => {
-    localStorage.setItem('openai_access_token', apiKeyInput.value);
 });
 const modelSelect = document.getElementById('model-select');
 const voiceSelect = document.getElementById('voice-select');
@@ -77,16 +76,9 @@ speakBtn.addEventListener('click', async () => {
     progressBar.value = 0;
     progressBar.max = 100;
     let text = textToSpeak.value.trim();
-    const accessToken = apiKeyInput.value.trim();
 
     if (text === '') {
         alert('Please enter some text.');
-        return;
-    }
-
-
-    if (accessToken === '') {
-        alert('Please enter your access token.');
         return;
     }
 
@@ -95,31 +87,18 @@ speakBtn.addEventListener('click', async () => {
         statusDiv.textContent = 'Cleaning article text...';
         speakBtn.disabled = true;
         try {
-            const cleanupResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            const cleanupResponse = await fetch('/api/cleanup', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: 'gpt-5-mini',
-                    messages: [
-                        {
-                            role: 'system',
-                            content: 'Extract only the article body text from the following raw page content. Return the article text exactly as written — do not summarize, rephrase, or alter the wording. Remove all of the following: navigation menus, page headers/footers, ads, cookie notices, sidebar content, related article links, subscription prompts, image captions, illustration credits, chart/graph labels and data points, diagram descriptions, source attributions for charts, "This article appeared in..." notes, and any other non-prose content. Keep only the flowing article paragraphs and their subheadings.'
-                        },
-                        { role: 'user', content: text }
-                    ]
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
             });
             if (!cleanupResponse.ok) {
                 const error = await cleanupResponse.json();
-                throw new Error(`Cleanup API Error: ${error.error.message}`);
+                throw new Error(`Cleanup API Error: ${error.error?.message || 'Unknown error'}`);
             }
             const cleanupData = await cleanupResponse.json();
-            const cleanedText = cleanupData.choices[0].message.content.trim();
+            const cleanedText = cleanupData.cleaned_text;
             textToSpeak.value = cleanedText;
-            // Update text variable for TTS
             text = cleanedText;
         } catch (error) {
             statusDiv.textContent = `Error: ${error.message}`;
@@ -166,17 +145,13 @@ speakBtn.addEventListener('click', async () => {
         async function fetchChunk(idx) {
             const chunk = chunks[idx];
             try {
-                const response = await fetch('https://api.openai.com/v1/audio/speech', {
+                const response = await fetch('/api/tts', {
                     method: 'POST',
-                    headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        text: chunk,
                         model: selectedModel,
-                        input: chunk,
-                        voice: selectedVoice,
-                        response_format: 'mp3'
+                        voice: selectedVoice
                     })
                 });
                 if (!response.ok) {
@@ -210,7 +185,7 @@ speakBtn.addEventListener('click', async () => {
 
                 downloadBtn.onclick = async () => {
                     // Generate a descriptive title and show it
-                    const title = await generateTitle(text, accessToken);
+                    const title = await generateTitle(text);
                     const titleDiv = document.getElementById('generated-title');
                     if (titleDiv) titleDiv.textContent = `Generated Title: ${title}`;
                     const a = document.createElement('a');

@@ -1,0 +1,13 @@
+{
+  "name": "article-2-audio",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "better-sqlite3": "^12.4.6",
+    "dotenv": "^16.3.1"
+  }
+}
