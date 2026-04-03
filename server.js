@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import crypto from 'crypto';
 import express from 'express';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -9,6 +10,8 @@ import { initDb, lookupOrCreate, closeDb } from './db.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3007;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const cleanupCache = new Map();
+const CLEANUP_CACHE_LIMIT = 50;
 
 if (!OPENAI_API_KEY) {
   console.error('OPENAI_API_KEY environment variable is required');
@@ -51,6 +54,18 @@ function requireUser(req, res, next) {
   next();
 }
 
+function createCleanupCacheKey(text) {
+  return crypto.createHash('sha256').update(text).digest('hex');
+}
+
+function rememberCleanupResult(cacheKey, payload) {
+  cleanupCache.set(cacheKey, payload);
+  if (cleanupCache.size > CLEANUP_CACHE_LIMIT) {
+    const oldestKey = cleanupCache.keys().next().value;
+    cleanupCache.delete(oldestKey);
+  }
+}
+
 // GET /api/me
 app.get('/api/me', requireUser, (req, res) => {
   res.json({
@@ -65,6 +80,7 @@ app.get('/api/me', requireUser, (req, res) => {
 app.post('/api/tts', requireUser, async (req, res) => {
   const { text, model, voice } = req.body;
   if (!text) return res.status(400).json({ error: 'text is required' });
+  const startedAt = Date.now();
 
   try {
     const response = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -89,6 +105,7 @@ app.post('/api/tts', requireUser, async (req, res) => {
 
     res.setHeader('Content-Type', 'audio/mpeg');
     const buffer = Buffer.from(await response.arrayBuffer());
+    console.log(`[TTS ok] user: ${req.user.username} | chars: ${text.length} | model: ${model || 'gpt-4o-mini-tts'} | voice: ${voice || 'onyx'} | duration_ms: ${Date.now() - startedAt}`);
     res.send(buffer);
   } catch (err) {
     console.error(`[TTS error] user: ${req.user.username} | ${err.message}`);
@@ -100,6 +117,19 @@ app.post('/api/tts', requireUser, async (req, res) => {
 app.post('/api/cleanup', requireUser, async (req, res) => {
   const { text } = req.body;
   if (!text) return res.status(400).json({ error: 'text is required' });
+  const cacheKey = createCleanupCacheKey(text);
+  const cached = cleanupCache.get(cacheKey);
+
+  if (cached) {
+    console.log(`[Cleanup cache] user: ${req.user.username} | chars_in: ${text.length} | chars_out: ${cached.cleaned_text.length}`);
+    return res.json({
+      ...cached,
+      cached: true,
+      duration_ms: 0
+    });
+  }
+
+  const startedAt = Date.now();
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -128,7 +158,18 @@ app.post('/api/cleanup', requireUser, async (req, res) => {
 
     const data = await response.json();
     const cleanedText = data.choices[0].message.content.trim();
-    res.json({ cleaned_text: cleanedText });
+    const durationMs = Date.now() - startedAt;
+    const payload = {
+      cleaned_text: cleanedText,
+      cached: false,
+      duration_ms: durationMs,
+      chars_in: text.length,
+      chars_out: cleanedText.length
+    };
+
+    rememberCleanupResult(cacheKey, payload);
+    console.log(`[Cleanup ok] user: ${req.user.username} | chars_in: ${text.length} | chars_out: ${cleanedText.length} | duration_ms: ${durationMs}`);
+    res.json(payload);
   } catch (err) {
     console.error(`[Cleanup error] user: ${req.user.username} | ${err.message}`);
     res.status(500).json({ error: { message: err.message } });
@@ -139,6 +180,7 @@ app.post('/api/cleanup', requireUser, async (req, res) => {
 app.post('/api/title', requireUser, async (req, res) => {
   const { text } = req.body;
   if (!text) return res.status(400).json({ error: 'text is required' });
+  const titleSource = text.slice(0, 4000);
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -151,7 +193,7 @@ app.post('/api/title', requireUser, async (req, res) => {
         model: 'gpt-4.1-nano',
         messages: [
           { role: 'system', content: 'You are a helpful assistant that generates a concise descriptive title for a given article.' },
-          { role: 'user', content: `Please provide a concise title (5 words or fewer) for the following article:\n\n${text}` }
+          { role: 'user', content: `Please provide a concise title (5 words or fewer) for the following article:\n\n${titleSource}` }
         ],
         max_tokens: 10,
         temperature: 0.7

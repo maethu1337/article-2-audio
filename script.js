@@ -1,260 +1,378 @@
 const textToSpeak = document.getElementById('text-to-speak');
 const speakBtn = document.getElementById('speak-btn');
+const cancelBtn = document.getElementById('cancel-btn');
 const downloadBtn = document.getElementById('download-btn');
 const audioPlayer = document.getElementById('audio-player');
 const statusDiv = document.getElementById('status');
-
-// Load user info from server
-window.addEventListener('DOMContentLoaded', async () => {
-    try {
-        const resp = await fetch('/api/me');
-        if (resp.ok) {
-            const user = await resp.json();
-            document.getElementById('user-greeting').textContent = `Welcome, ${user.display_name}`;
-        }
-    } catch (e) {
-        console.error('Failed to load user info', e);
-    }
-});
 const modelSelect = document.getElementById('model-select');
 const voiceSelect = document.getElementById('voice-select');
+const rawArticleToggle = document.getElementById('raw-article-toggle');
+const cleanupProgress = document.getElementById('cleanup-progress');
+const synthesisProgress = document.getElementById('progress-bar');
+const playbackProgress = document.getElementById('playback-progress');
+const cleanupMeta = document.getElementById('cleanup-meta');
+const synthesisMeta = document.getElementById('synthesis-meta');
+const playbackMeta = document.getElementById('playback-meta');
+const cleanupPreview = document.getElementById('cleanup-preview');
+const cleanupPreviewText = document.getElementById('cleanup-preview-text');
+const charCount = document.getElementById('char-count');
+const chunkEstimate = document.getElementById('chunk-estimate');
+const listenEstimate = document.getElementById('listen-estimate');
 
-// Default voices per model
 const defaultVoices = {
     'gpt-4o-mini-tts': 'onyx',
     'tts-1': 'onyx'
 };
 
-// Switch default voice when model changes
+const jobState = {
+    activeJobId: 0,
+    controller: null,
+    isRunning: false,
+    stitchedUrl: null
+};
+
+window.addEventListener('DOMContentLoaded', async () => {
+    updateEstimates();
+
+    try {
+        const resp = await fetch('/api/me');
+        if (resp.ok) {
+            const user = await resp.json();
+            document.getElementById('user-greeting').textContent = `Signed in as ${user.display_name}`;
+        }
+    } catch (e) {
+        console.error('Failed to load user info', e);
+    }
+});
+
 modelSelect.addEventListener('change', () => {
     const model = modelSelect.value;
     if (defaultVoices[model]) {
         voiceSelect.value = defaultVoices[model];
     }
 });
-const rawArticleToggle = document.getElementById('raw-article-toggle');
-const labelClean = document.getElementById('label-clean');
-const labelRaw = document.getElementById('label-raw');
 
-// Toggle label highlighting
-function updateToggleLabels() {
-    if (rawArticleToggle.checked) {
-        labelClean.classList.remove('active');
-        labelRaw.classList.add('active');
-    } else {
-        labelClean.classList.add('active');
-        labelRaw.classList.remove('active');
+textToSpeak.addEventListener('input', updateEstimates);
+cancelBtn.addEventListener('click', cancelActiveJob);
+downloadBtn.addEventListener('click', (event) => {
+    if (downloadBtn.disabled) {
+        event.preventDefault();
     }
+});
+
+function updateEstimates() {
+    const text = textToSpeak.value.trim();
+    const chars = text.length;
+    charCount.textContent = chars.toLocaleString();
+    chunkEstimate.textContent = chars ? String(estimateChunks(text)) : '0';
+
+    const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+    const minutes = words ? Math.max(1, Math.round(words / 170)) : 0;
+    listenEstimate.textContent = `${minutes} min`;
 }
-rawArticleToggle.addEventListener('change', updateToggleLabels);
-updateToggleLabels();
 
-// Helper to determine chunk end at sentence boundary
-function getChunkEnd(text, start, maxSize, minSize) {
-  const textLength = text.length;
-  let end = Math.min(start + maxSize, textLength);
-  if (end < textLength) {
-    const slice = text.slice(start + minSize, end);
-    const lastDot = slice.lastIndexOf('.');
-    const lastQ = slice.lastIndexOf('?');
-    const lastE = slice.lastIndexOf('!');
-    const lastPunc = Math.max(lastDot, lastQ, lastE);
-    if (lastPunc > -1) {
-      return start + minSize + lastPunc + 1;
+function estimateChunks(text) {
+    if (!text.trim()) {
+        return 0;
     }
-  }
-  return end;
+
+    const firstChunkSize = 512;
+    const chunkSize = 2048;
+    let i = 0;
+    let count = 0;
+
+    let end = getChunkEnd(text, i, firstChunkSize, 30);
+    count += 1;
+    i = end;
+
+    while (i < text.length) {
+        end = getChunkEnd(text, i, chunkSize, 50);
+        count += 1;
+        i = end;
+    }
+
+    return count;
+}
+
+function getChunkEnd(text, start, maxSize, minSize) {
+    const textLength = text.length;
+    let end = Math.min(start + maxSize, textLength);
+    if (end < textLength) {
+        const slice = text.slice(start + minSize, end);
+        const lastDot = slice.lastIndexOf('.');
+        const lastQ = slice.lastIndexOf('?');
+        const lastE = slice.lastIndexOf('!');
+        const lastPunc = Math.max(lastDot, lastQ, lastE);
+        if (lastPunc > -1) {
+            return start + minSize + lastPunc + 1;
+        }
+    }
+    return end;
+}
+
+function buildChunks(text) {
+    const chunks = [];
+    let i = 0;
+    let end = getChunkEnd(text, i, 512, 30);
+    chunks.push(text.slice(i, end));
+    i = end;
+
+    while (i < text.length) {
+        end = getChunkEnd(text, i, 2048, 50);
+        chunks.push(text.slice(i, end));
+        i = end;
+    }
+
+    return chunks;
+}
+
+function setRunningState(isRunning) {
+    jobState.isRunning = isRunning;
+    speakBtn.disabled = isRunning;
+    cancelBtn.disabled = !isRunning;
+    textToSpeak.disabled = isRunning;
+    modelSelect.disabled = isRunning;
+    voiceSelect.disabled = isRunning;
+    rawArticleToggle.disabled = isRunning;
+}
+
+function setStatus(message) {
+    statusDiv.textContent = message;
+}
+
+function resetProgress() {
+    cleanupProgress.value = 0;
+    synthesisProgress.value = 0;
+    playbackProgress.value = 0;
+    cleanupMeta.textContent = rawArticleToggle.checked ? 'Waiting' : 'Skipped';
+    synthesisMeta.textContent = 'Waiting';
+    playbackMeta.textContent = 'Not started';
+}
+
+function resetOutput() {
+    if (jobState.stitchedUrl) {
+        URL.revokeObjectURL(jobState.stitchedUrl);
+        jobState.stitchedUrl = null;
+    }
+
+    audioPlayer.pause();
+    audioPlayer.removeAttribute('src');
+    audioPlayer.load();
+    audioPlayer.hidden = true;
+    downloadBtn.disabled = true;
+}
+
+function cancelActiveJob() {
+    jobState.activeJobId = 0;
+    if (jobState.controller) {
+        jobState.controller.abort();
+    }
+    audioPlayer.pause();
+    setStatus('Canceled');
+    setRunningState(false);
+}
+
+function isCurrentJob(jobId) {
+    return jobId === jobState.activeJobId;
+}
+
+function formatDuration(ms) {
+    if (ms < 1000) {
+        return `${ms} ms`;
+    }
+    return `${(ms / 1000).toFixed(1)} s`;
+}
+
+function waitForAudioEnd(jobId) {
+    return new Promise((resolve) => {
+        const handleEnded = () => {
+            audioPlayer.removeEventListener('ended', handleEnded);
+            audioPlayer.removeEventListener('pause', handlePause);
+            resolve();
+        };
+        const handlePause = () => {
+            if (isCurrentJob(jobId)) {
+                return;
+            }
+            audioPlayer.removeEventListener('ended', handleEnded);
+            audioPlayer.removeEventListener('pause', handlePause);
+            resolve();
+        };
+        audioPlayer.addEventListener('ended', handleEnded);
+        audioPlayer.addEventListener('pause', handlePause);
+    });
+}
+
+async function cleanupText(text, signal) {
+    if (!rawArticleToggle.checked) {
+        cleanupProgress.value = 100;
+        cleanupMeta.textContent = 'Skipped';
+        cleanupPreview.open = false;
+        cleanupPreviewText.textContent = 'No cleaned text yet.';
+        return text;
+    }
+
+    setStatus('Preparing article text...');
+    cleanupMeta.textContent = 'Running extraction';
+    cleanupProgress.value = 15;
+
+    const cleanupResponse = await fetch('/api/cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+        signal
+    });
+
+    if (!cleanupResponse.ok) {
+        const error = await cleanupResponse.json();
+        throw new Error(`Cleanup API Error: ${error.error?.message || 'Unknown error'}`);
+    }
+
+    const cleanupData = await cleanupResponse.json();
+    cleanupProgress.value = 100;
+    cleanupMeta.textContent = `${cleanupData.cached ? 'Cache hit' : 'LLM cleanup'} in ${formatDuration(cleanupData.duration_ms)}`;
+    cleanupPreviewText.textContent = cleanupData.cleaned_text;
+    cleanupPreview.open = true;
+    return cleanupData.cleaned_text;
+}
+
+async function fetchTtsChunk(chunk, model, voice, signal) {
+    const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            text: chunk,
+            model,
+            voice
+        }),
+        signal
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`TTS API Error: ${error.error?.message || 'Unknown error'}`);
+    }
+
+    return response.blob();
+}
+
+async function synthesizeChunks(chunks, model, voice, signal) {
+    const audioBlobs = new Array(chunks.length);
+    let completed = 0;
+
+    const tasks = chunks.map(async (chunk, index) => {
+        const blob = await fetchTtsChunk(chunk, model, voice, signal);
+        audioBlobs[index] = blob;
+        completed += 1;
+        synthesisProgress.value = Math.round((completed / chunks.length) * 100);
+        synthesisMeta.textContent = `${completed}/${chunks.length} chunks ready`;
+    });
+
+    const results = await Promise.allSettled(tasks);
+    const failed = results.find((result) => result.status === 'rejected');
+    if (failed) {
+        throw failed.reason;
+    }
+
+    return audioBlobs;
+}
+
+async function playChunks(jobId, audioBlobs) {
+    audioPlayer.hidden = false;
+
+    for (let index = 0; index < audioBlobs.length; index += 1) {
+        if (!isCurrentJob(jobId)) {
+            return;
+        }
+
+        const chunkUrl = URL.createObjectURL(audioBlobs[index]);
+        audioPlayer.src = chunkUrl;
+        playbackMeta.textContent = `Chunk ${index + 1}/${audioBlobs.length}`;
+        await audioPlayer.play();
+        await waitForAudioEnd(jobId);
+        URL.revokeObjectURL(chunkUrl);
+        playbackProgress.value = Math.round(((index + 1) / audioBlobs.length) * 100);
+    }
+
+    playbackMeta.textContent = 'Finished';
 }
 
 speakBtn.addEventListener('click', async () => {
-    // Reset download button
-    downloadBtn.disabled = true;
-    const playbackProgress = document.getElementById('playback-progress');
-    playbackProgress.value = 0;
-    playbackProgress.max = 100;
-    const progressBar = document.getElementById('progress-bar');
-    progressBar.value = 0;
-    progressBar.max = 100;
-    let text = textToSpeak.value.trim();
-
-    if (text === '') {
+    const originalText = textToSpeak.value.trim();
+    if (!originalText) {
         alert('Please enter some text.');
         return;
     }
 
-    // Raw Article mode: clean text via LLM first
-    if (rawArticleToggle.checked) {
-        statusDiv.textContent = 'Cleaning article text...';
-        speakBtn.disabled = true;
-        try {
-            const cleanupResponse = await fetch('/api/cleanup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text })
-            });
-            if (!cleanupResponse.ok) {
-                const error = await cleanupResponse.json();
-                throw new Error(`Cleanup API Error: ${error.error?.message || 'Unknown error'}`);
-            }
-            const cleanupData = await cleanupResponse.json();
-            const cleanedText = cleanupData.cleaned_text;
-            textToSpeak.value = cleanedText;
-            text = cleanedText;
-        } catch (error) {
-            statusDiv.textContent = `Error: ${error.message}`;
-            alert(`An error occurred during text cleanup: ${error.message}`);
-            speakBtn.disabled = false;
-            return;
-        }
-    }
+    cancelActiveJob();
+    resetOutput();
+    resetProgress();
 
-    statusDiv.textContent = 'Synthesizing audio...';
-    speakBtn.disabled = true;
+    const controller = new AbortController();
+    const jobId = Date.now();
+    jobState.activeJobId = jobId;
+    jobState.controller = controller;
+    setRunningState(true);
 
     try {
-        let selectedModel = 'gpt-4o-mini-tts';
-        if (modelSelect && modelSelect.value) {
-            selectedModel = modelSelect.value;
-        }
-        let selectedVoice = 'onyx';
-        if (voiceSelect && voiceSelect.value) {
-            selectedVoice = voiceSelect.value;
-        }
-        const firstChunkSize = 512;
-        const chunkSize = 2048;
-        const chunks = [];
-        let i = 0;
-        // First chunk: smaller for fast playback
-        let end = getChunkEnd(text, i, firstChunkSize, 30);
-        chunks.push(text.slice(i, end));
-        i = end;
-        // Remaining chunks: larger for efficiency
-        while (i < text.length) {
-           let end = getChunkEnd(text, i, chunkSize, 50);
-            chunks.push(text.slice(i, end));
-             i = end;
+        const preparedText = (await cleanupText(originalText, controller.signal)).trim();
+        if (!isCurrentJob(jobId)) {
+            return;
         }
 
-        // Fetch all chunks in parallel
-        let audioBlobs = new Array(chunks.length);
-        let allChunksLoaded = false;
-        let loadedCount = 0;
-        let errorOccurred = false;
+        textToSpeak.value = preparedText;
+        updateEstimates();
 
-        // Helper to fetch a chunk and update progress
-        async function fetchChunk(idx) {
-            const chunk = chunks[idx];
-            try {
-                const response = await fetch('/api/tts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        text: chunk,
-                        model: selectedModel,
-                        voice: selectedVoice
-                    })
-                });
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(`API Error: ${error.error.message}`);
-                }
-                const audioBlob = await response.blob();
-                audioBlobs[idx] = audioBlob;
-                loadedCount++;
-                progressBar.value = Math.round((loadedCount / chunks.length) * 100);
-                // Visual loading bar updates only
-            } catch (error) {
-                errorOccurred = true;
-                statusDiv.textContent = `Error: ${error.message}`;
-                alert(`An error occurred: ${error.message}`);
-            }
+        const selectedModel = modelSelect.value || 'gpt-4o-mini-tts';
+        const selectedVoice = voiceSelect.value || 'onyx';
+        const chunks = buildChunks(preparedText);
+
+        setStatus('Generating audio...');
+        synthesisMeta.textContent = `Starting ${chunks.length} chunks`;
+        const synthStart = performance.now();
+        const audioBlobs = await synthesizeChunks(chunks, selectedModel, selectedVoice, controller.signal);
+        if (!isCurrentJob(jobId)) {
+            return;
         }
 
-        // Start fetching all chunks
-        let fetchPromises = [];
-        for (let idx = 0; idx < chunks.length; idx++) {
-            fetchPromises.push(fetchChunk(idx));
+        const synthDuration = Math.round(performance.now() - synthStart);
+        const stitchedBlob = new Blob(audioBlobs, { type: 'audio/mpeg' });
+        jobState.stitchedUrl = URL.createObjectURL(stitchedBlob);
+        synthesisMeta.textContent = `${chunks.length} chunks in ${formatDuration(synthDuration)}`;
+
+        downloadBtn.onclick = async () => {
+            const title = await generateTitle(preparedText);
+            const a = document.createElement('a');
+            a.href = jobState.stitchedUrl;
+            a.download = `${title}.mp3`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
+        downloadBtn.disabled = false;
+
+        setStatus('Playing audio...');
+        await playChunks(jobId, audioBlobs);
+        if (!isCurrentJob(jobId)) {
+            return;
         }
 
-        // When all chunks are loaded, stitch and enable download
-        Promise.all(fetchPromises).then(() => {
-            if (!errorOccurred) {
-                // Stitch all blobs together
-                const stitchedBlob = new Blob(audioBlobs, { type: 'audio/mpeg' });
-                const stitchedUrl = URL.createObjectURL(stitchedBlob);
-
-                downloadBtn.onclick = async () => {
-                    // Generate a descriptive title and show it
-                    const title = await generateTitle(text);
-                    const titleDiv = document.getElementById('generated-title');
-                    if (titleDiv) titleDiv.textContent = `Generated Title: ${title}`;
-                    const a = document.createElement('a');
-                    a.href = stitchedUrl;
-                    a.download = `${title}.mp3`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                };
-
-                downloadBtn.disabled = false;
-                allChunksLoaded = true;
-                statusDiv.textContent = 'Audio ready for download.';
-            }
-        }).catch((err) => {
-            statusDiv.textContent = `Error: ${err.message}`;
-            speakBtn.disabled = false;
-        });
-
-        // Play first chunk as soon as it's ready
-        let firstChunkPlayed = false;
-        (async function waitAndPlay() {
-            while (!audioBlobs[0] && !errorOccurred) {
-                await new Promise(res => setTimeout(res, 100));
-            }
-            if (audioBlobs[0]) {
-                let currentObjUrl = URL.createObjectURL(audioBlobs[0]);
-                audioPlayer.src = currentObjUrl;
-                audioPlayer.hidden = false;
-                audioPlayer.play();
-                statusDiv.textContent = 'Playing audio...';
-                firstChunkPlayed = true;
-
-                // Custom playback progress
-                let currentIdx = 0;
-                let totalChunks = chunks.length;
-                playbackProgress.value = 0;
-
-                audioPlayer.onended = async function playNextChunk() {
-                    URL.revokeObjectURL(currentObjUrl);
-                    currentIdx++;
-                    playbackProgress.value = Math.round((currentIdx / totalChunks) * 100);
-                    while (!audioBlobs[currentIdx] && currentIdx < totalChunks && !errorOccurred) {
-                        await new Promise(res => setTimeout(res, 100));
-                    }
-                    if (audioBlobs[currentIdx]) {
-                        currentObjUrl = URL.createObjectURL(audioBlobs[currentIdx]);
-                        audioPlayer.src = currentObjUrl;
-                        audioPlayer.play();
-                    } else if (currentIdx >= totalChunks) {
-                        statusDiv.textContent = 'Finished speaking.';
-                        playbackProgress.value = 100;
-                    }
-                };
-            }
-        })();
-
+        setStatus('Audio ready');
     } catch (error) {
-        statusDiv.textContent = `Error: ${error.message}`;
-        alert(`An error occurred: ${error.message}`);
+        if (error.name === 'AbortError') {
+            setStatus('Canceled');
+            cleanupMeta.textContent = cleanupProgress.value > 0 && cleanupProgress.value < 100 ? 'Canceled' : cleanupMeta.textContent;
+            synthesisMeta.textContent = synthesisProgress.value > 0 && synthesisProgress.value < 100 ? 'Canceled' : synthesisMeta.textContent;
+            playbackMeta.textContent = playbackProgress.value > 0 && playbackProgress.value < 100 ? 'Canceled' : playbackMeta.textContent;
+        } else {
+            console.error(error);
+            setStatus(`Error: ${error.message}`);
+            alert(`An error occurred: ${error.message}`);
+        }
     } finally {
-        speakBtn.disabled = false;
-    }
-});
-
-// Download button click (optional: fallback for browsers not supporting anchor download)
-// No click handler needed for anchor download, but prevent action if not ready
-downloadBtn.addEventListener('click', function(e) {
-    if (downloadBtn.disabled) {
-        e.preventDefault();
+        if (isCurrentJob(jobId)) {
+            jobState.controller = null;
+            setRunningState(false);
+        }
     }
 });
